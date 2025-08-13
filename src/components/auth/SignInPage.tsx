@@ -118,7 +118,7 @@ export function SignInPage({ onSignUp, onSuccess }: SignInPageProps) {
                     Remember me
                   </label>
                 </div>
-                <a href="#" className="text-yellow-500 hover:underline">
+                <a href="#." className="text-yellow-500 hover:underline">
                   Forgot Password?
                 </a>
               </div>
