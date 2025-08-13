@@ -16,12 +16,7 @@ export function Footer() {
             viewport={{ once: true }}
             className="space-y-4"
           >
-            <div className="flex items-center mb-4">
-              <div className="bg-yellow-400 w-10 h-10 rounded-full flex items-center justify-center mr-3">
-                <div className="w-5 h-5 bg-black rounded-full"></div>
-              </div>
-              <span className="text-2xl font-semibold">LiteAfrika</span>
-            </div>
+           <img src="/assets/Logo.png" alt="footer-logo" />
             <p className="text-gray-300 leading-relaxed">
               Powering African communities with clean, reliable, and affordable
               solar energy solutions.
@@ -76,7 +71,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="#contact"
+                  href="#"
                   className="text-gray-300 hover:text-white transition-colors"
                 >
                   Contact
@@ -128,7 +123,7 @@ export function Footer() {
                 </span>
               </div>
             </div>
-            <Button className="bg-yellow-400 text-black hover:bg-yellow-300 mt-4 w-full">
+            <Button className="bg-[#FFC404] text-black hover:bg-yellow-300 mt-4 w-full">
               Get Started Today
             </Button>
           </motion.div>

@@ -1,6 +1,7 @@
+import React from "react";
 import { motion } from "framer-motion";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import React from 'react'
+
 export function AboutSection() {
   return (
     <section id="about" className="py-20 bg-gray-900 text-white">

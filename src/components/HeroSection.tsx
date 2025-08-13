@@ -1,7 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-export function HeroSection() {
+interface HeroSectionProps {
+  onGetStarted: () => void;
+}
+
+export function HeroSection({ onGetStarted }: HeroSectionProps) {
   return (
     <section id="home" className="min-h-screen pt-16 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
@@ -42,22 +46,16 @@ export function HeroSection() {
               transition={{ duration: 0.6, delay: 0.8 }}
               className="flex flex-col sm:flex-row gap-4 pt-4"
             >
-              <button className="bg-yellow-400 text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all transform hover:scale-105">
+              <button
+                onClick={onGetStarted}
+                className="bg-[#FFC404] text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all transform hover:scale-105"
+              >
                 Get Started Today
               </button>
               <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-black transition-all">
                 Learn More
               </button>
             </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="relative"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/30 to-green-600/30 rounded-3xl"></div>
           </motion.div>
         </div>
 
@@ -97,8 +95,8 @@ export function HeroSection() {
         className="absolute inset-0 -z-10"
         style={{
           backgroundImage: `
-      linear-gradient(to top right, rgba(0, 0, 0, 0.85), rgba(10, 25, 47, 0.4)),
-      url('/assets/banner.jpg')
+      linear-gradient(to top right, rgba(0,0,0,0.8), rgba(0,0,0,0)),
+      url("/assets/banner.jpg")
     `,
           backgroundSize: "cover",
           backgroundPosition: "center",

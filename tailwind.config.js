@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#3F2EC8", // Main theme color
+        primary: "#FFC404", // Main theme color
         primaryHover: "#2D23A6", // Slightly darker shade for hover
         accent: "#2C14DD", // Secondary text or accent color
         bgHoverPrimary: "#1855F9",

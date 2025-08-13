@@ -8,7 +8,7 @@ const steps = [
     title: "Choose a Community",
     description:
       "Select a community that needs access to clean, reliable solar energy. Browse available communities and their energy needs.",
-    color: "bg-yellow-400",
+    color: "bg-[#FFC404]",
   },
   {
     icon: <Wrench className="w-12 h-12" />,
@@ -36,7 +36,7 @@ const steps = [
 export function HowItWorksSection() {
   return (
     <section id="how-it-works" className="py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="grid md:grid-cols-2  px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ y: 50, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
@@ -44,7 +44,7 @@ export function HowItWorksSection() {
           viewport={{ once: true }}
           className="text-center mb-16 flex flex-col items-center justify-center"
         >
-          <img src="/assets/about.png" alt="" className="w-60" />
+          <img src="/assets/about.png" alt="" className="w-[100px] h-[100px]" />
           <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
             How LiteAfrika works
           </h2>
@@ -54,7 +54,7 @@ export function HowItWorksSection() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-8">
           {steps.map((step, index) => (
             <motion.div
               key={index}
@@ -66,7 +66,7 @@ export function HowItWorksSection() {
                 y: -10,
                 transition: { duration: 0.3 },
               }}
-              className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
+              className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-yellow-500"
             >
               <motion.div
                 initial={{ scale: 0 }}

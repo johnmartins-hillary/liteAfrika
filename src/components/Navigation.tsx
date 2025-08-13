@@ -1,9 +1,24 @@
 import React, { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "./ui/button";
+// import ZkLoginExample from "./auth/ZkLogin";
 
-export function Navigation() {
+interface NavigationProps {
+  onSignUp: () => void;
+  onSignIn: () => void;
+  isAuthenticated: boolean;
+  onSignOut: () => void;
+  onDashboard?: () => void;
+}
+
+export function Navigation({
+  onSignUp,
+  onSignIn,
+  isAuthenticated,
+  onSignOut,
+  onDashboard,
+}: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -15,9 +30,7 @@ export function Navigation() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <img src="/assets/Logo.svg" alt="logo" />
-          </div>
+          <img src="/assets/Logo.png" alt="" />
 
           {/* Desktop Menu */}
           <div className="hidden md:flex space-x-8">
@@ -47,11 +60,52 @@ export function Navigation() {
             </a>
           </div>
 
-          <div className="hidden md:block">
-            <Button className="bg-black text-white hover:bg-gray-800">
-              Get Started
-            </Button>
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <User size={20} />
+                  <span>Welcome back!</span>
+                </div>
+                {onDashboard && (
+                  <Button
+                    variant="outline"
+                    onClick={onDashboard}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Dashboard
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={onSignOut}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={onSignIn}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Sign In
+                </Button>
+                <Button
+                  onClick={onSignUp}
+                  className="bg-black text-white hover:bg-gray-800"
+                >
+                  Get Started
+                </Button>
+              </>
+            )}
           </div>
+
+          {/* <ZkLoginExample /> */}
 
           {/* Mobile Menu Button */}
           <div className="md:hidden">
@@ -94,9 +148,49 @@ export function Navigation() {
               >
                 FAQ
               </a>
-              <Button className="w-full bg-black text-white hover:bg-gray-800 mt-4">
-                Get Started
-              </Button>
+
+              {/* Mobile Auth Buttons */}
+              {isAuthenticated ? (
+                <div className="space-y-3 pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <User size={20} />
+                    <span>Welcome back!</span>
+                  </div>
+                  {onDashboard && (
+                    <Button
+                      variant="outline"
+                      onClick={onDashboard}
+                      className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                      Dashboard
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={onSignOut}
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-4 border-t border-gray-100">
+                  <Button
+                    variant="outline"
+                    onClick={onSignIn}
+                    className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    onClick={onSignUp}
+                    className="w-full bg-black text-white hover:bg-gray-800"
+                  >
+                    Get Started
+                  </Button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

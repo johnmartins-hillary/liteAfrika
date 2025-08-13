@@ -84,13 +84,13 @@ Mastering both helps you build responsive designs faster with cleaner code.
     <div className="h-auto bg-gray-50 relative overflow-hidden" ref={ref}>
       {/* Animated yellow rectangles */}
       <motion.div
-        className="z-10 absolute top-0 left-0 w-24 sm:w-32 h-full bg-yellow-400 rounded-r-3xl"
+        className="z-10 absolute top-0 left-0 w-24 sm:w-32 h-full bg-[#FFC404] rounded-r-3xl"
         initial={{ x: -128 }}
         animate={isInView ? { x: 0 } : { x: -128 }}
         transition={{ duration: 0.8, delay: 0.2 }}
       />
       <motion.div
-        className="z-10 absolute top-0 right-0 w-24 sm:w-32 h-full bg-yellow-400 rounded-l-3xl"
+        className="z-10 absolute top-0 right-0 w-24 sm:w-32 h-full bg-[#FFC404] rounded-l-3xl"
         initial={{ x: 128 }}
         animate={isInView ? { x: 0 } : { x: 128 }}
         transition={{ duration: 0.8, delay: 0.4 }}
