@@ -1,65 +1,137 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { toast } from "sonner";
+import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { Transaction } from "@mysten/sui/transactions";
+import { MODULE_NAME, PACKAGE_ID, REGISTRY_ID } from "../../constants";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
+import { SuccessModal } from "../ui/SuccessModal";
 
-interface VoteCommunity {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  votes: number;
-  hasVoted: boolean;
+const client = new SuiClient({ url: getFullnodeUrl("testnet") });
+
+const DUMMY_IMAGE_URL = "https://placehold.co/200x120?text=Hub+Image";
+
+// --- Helpers ---
+function decodeVecU8(arr: number[] | undefined) {
+  if (!arr || !Array.isArray(arr)) return "";
+  try {
+    return new TextDecoder().decode(new Uint8Array(arr));
+  } catch {
+    return "";
+  }
 }
 
+function safeNumber(val: string | number | undefined, scale = 1) {
+  if (val == null) return 0;
+  const num = Number(val);
+  return isNaN(num) ? 0 : num / scale;
+}
+
+function hasVoted(voters: string[] | undefined, address: string | undefined) {
+  if (!voters || !address) return false;
+  return voters.some((v) => v.toLowerCase() === address.toLowerCase());
+}
+
+// --- Component ---
 export function VoteCommunityPage() {
-  const [communities, setCommunities] = useState<VoteCommunity[]>([
-    {
-      id: "1",
-      name: "Kiribati Village, Nigeria",
-      description:
-        "A rural community working to bring solar energy to every household for sustainable development.",
-      image:
-        "https://images.unsplash.com/photo-1636871694216-d04517e0d1c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwdmlsbGFnZSUyMGxhbmRzY2FwZSUyMHN1bnNldHxlbnwxfHx8fDE3NTUwNzU5NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      votes: 1240,
-      hasVoted: false,
-    },
-    {
-      id: "2",
-      name: "Achimota Valley, Ghana",
-      description:
-        "Mountain community seeking solar infrastructure to power schools and healthcare facilities.",
-      image:
-        "https://images.unsplash.com/photo-1445407167204-99163ec1ccb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwcnVyYWwlMjBjb21tdW5pdHklMjBncmVlbiUyMGhpbGxzfGVufDF8fHx8MTc1NTA3NTk0NHww&ixlib=rb-4.1.0&q=80&w=1080",
-      votes: 987,
-      hasVoted: false,
-    },
-    {
-      id: "3",
-      name: "Nikata Village, Nigeria",
-      description:
-        "Coastal community working to establish renewable energy systems for local businesses.",
-      image:
-        "https://images.unsplash.com/photo-1542936586-2620482f0690?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwdG93biUyMHN1bnNldCUyMGdvbGRlbiUyMGhvdXJ8ZW58MXx8fHwxNzU1MDc1OTQ4fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      votes: 756,
-      hasVoted: false,
-    },
-  ]);
+  const [hubs, setHubs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const account: any = useCurrentAccount();
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
-  const handleVote = (communityId: string) => {
-    setCommunities((prev) =>
-      prev.map((community) =>
-        community.id === communityId
-          ? { ...community, votes: community.votes + 1, hasVoted: true }
-          : community
-      )
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | undefined>(
+    undefined
+  );
+
+  useEffect(() => {
+    async function fetchHubs() {
+      try {
+        const registry: any = await client.getObject({
+          id: REGISTRY_ID,
+          options: { showContent: true },
+        });
+
+        const fields: any = registry.data?.content?.fields;
+        if (!fields?.hubs) {
+          toast.error("No hubs found in registry");
+          setLoading(false);
+          return;
+        }
+
+        const hubsWithVoters = await Promise.all(
+          fields.hubs.map(async (hub: any) => {
+            return {
+              ...hub,
+              voters: hub.fields?.voters || [],
+            };
+          })
+        );
+
+        setHubs(hubsWithVoters);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to fetch communities");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchHubs();
+  }, []);
+
+  async function getCallerTokenBalance(address: string, coinType: string) {
+    const coins = await client.getCoins({ owner: address, coinType });
+    return coins.data.reduce(
+      (sum, coin) => sum + BigInt(coin.balance),
+      BigInt(0)
     );
+  }
 
-    const community = communities.find((c) => c.id === communityId);
-    toast.success(`Thank you for voting for ${community?.name}!`);
+  const handleVote = async (hubId: number) => {
+    try {
+      const callerTokenBalance = await getCallerTokenBalance(
+        account.address,
+        "0x5c28ffccbaa739ecaae7cfddeffe15b8cbc09d3e4248e0b987b4f6bb1608cd2f::lit_token::LIT_TOKEN"
+      );
+
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::vote_for_hub`,
+        arguments: [
+          tx.object(REGISTRY_ID),
+          tx.pure.u64(BigInt(hubId)),
+          tx.pure.u64(callerTokenBalance),
+        ],
+      });
+
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            toast.success(`Thank you for voting!`);
+            setTransactionId(result?.digest);
+            setIsSuccessModalOpen(true);
+          },
+          onError: (err) => {
+            toast.error("Failed to vote: " + err.message);
+          },
+        }
+      );
+    } catch (error) {
+      toast.error("Error sending vote transaction");
+    }
   };
+
+  if (loading) {
+    return <p className="text-gray-500">Loading hubs...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -77,51 +149,74 @@ export function VoteCommunityPage() {
         </div>
 
         <div className="space-y-4">
-          {communities.map((community, index) => (
+          {hubs.map((hub: any, index) => (
             <motion.div
-              key={community.id}
+              key={hub.fields?.hub_id || index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               <Card className="overflow-hidden">
                 <div className="flex flex-col md:flex-row">
-                  {/* Community Image */}
                   <div className="md:w-80 h-48 md:h-auto">
                     <ImageWithFallback
-                      src={community.image}
-                      alt={community.name}
+                      src={
+                        hub.fields.community_image
+                          ? new TextDecoder().decode(
+                              new Uint8Array(hub.fields.community_image)
+                            )
+                          : DUMMY_IMAGE_URL
+                      }
+                      alt={decodeVecU8(hub.fields?.name)}
                       className="w-full h-full object-cover"
                     />
                   </div>
 
-                  {/* Community Info */}
                   <div className="flex-1 p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between h-full">
                       <div className="flex-1 mb-4 md:mb-0">
                         <h3 className="text-lg font-medium mb-2">
-                          {community.name}
+                          {decodeVecU8(hub.fields?.name) || "Unnamed"}
                         </h3>
                         <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                          {community.description}
+                          <span className="block">
+                            <strong>City:</strong>{" "}
+                            {decodeVecU8(hub.fields?.city) || "Unknown"}
+                          </span>
+                          <span className="block">
+                            <strong>Contact:</strong>{" "}
+                            {decodeVecU8(hub.fields?.contact) || "Unknown"}
+                          </span>
+                          <span className="block">
+                            <strong>Latitude:</strong>{" "}
+                            {safeNumber(hub.fields?.latitude, 1e6)}
+                          </span>
+                          <span className="block">
+                            <strong>Longitude:</strong>{" "}
+                            {safeNumber(hub.fields?.longitude, 1e6)}
+                          </span>
                         </p>
                         <div className="text-sm text-gray-500">
-                          {community.votes.toLocaleString()} votes
+                          {hub.fields?.vote_count
+                            ? Number(hub.fields.vote_count).toLocaleString()
+                            : "0"}{" "}
+                          votes
                         </div>
                       </div>
 
-                      {/* Vote Button */}
                       <div className="md:ml-6">
                         <Button
-                          onClick={() => handleVote(community.id)}
-                          disabled={community.hasVoted}
+                          onClick={() => handleVote(Number(hub.fields?.hub_id))}
+                          disabled={hasVoted(hub.voters, account?.address)}
                           className={`px-8 py-2 rounded-md font-medium transition-colors ${
-                            community.hasVoted
-                              ? "bg-gray-400 text-white cursor-not-allowed"
+                            hasVoted(hub.voters, account?.address)
+                              ? "bg-gray-400 cursor-not-allowed"
                               : "bg-[#FFC404] hover:bg-yellow-500 text-black"
                           }`}
                         >
-                          {community.hasVoted ? "Voted" : "Vote"}
+                          {hasVoted(hub.voters, account?.address)
+                            ? "Voted"
+                            : "Vote"}
                         </Button>
                       </div>
                     </div>
@@ -132,6 +227,14 @@ export function VoteCommunityPage() {
           ))}
         </div>
       </motion.div>
+
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title="Vote Successful!"
+        message="Your vote has been submitted successfully."
+        transactionId={transactionId}
+      />
     </div>
   );
 }

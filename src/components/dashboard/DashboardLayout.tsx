@@ -33,6 +33,7 @@ export function DashboardLayout({
     { id: "communities", label: "Communities", icon: Users },
     { id: "fund-community", label: "Fund a Community", icon: LucideWallet },
     { id: "settings", label: "Settings", icon: Settings },
+    { id: "configurations", label: "Configurations", icon: Settings },
   ];
 
   return (

@@ -6,10 +6,15 @@ import { Progress } from "../ui/progress";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { Transaction } from "@mysten/sui/transactions";
+import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { MODULE_NAME, PACKAGE_ID, REGISTRY_ID } from "../../constants";
+import { SuccessModal } from "../ui/SuccessModal";
 
 interface CommunityDetailPageProps {
   community: {
     id: string;
+    hub_id: number;
     name: string;
     image: string;
     fundingGoal: number;
@@ -21,16 +26,19 @@ interface CommunityDetailPageProps {
     description: string;
   } | null;
   onBack: () => void;
-  onFund: (amount: number) => void;
 }
 
 export function CommunityDetailPage({
   community,
   onBack,
-  onFund,
 }: CommunityDetailPageProps) {
   const [selectedAmount, setSelectedAmount] = useState<number>(0);
   const [customAmount, setCustomAmount] = useState<string>("");
+  const [sendingTx, setSendingTx] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [txId, setTxId] = useState<string | undefined>(undefined);
+
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
   if (!community) return null;
 
@@ -51,24 +59,44 @@ export function CommunityDetailPage({
     setSelectedAmount(0);
   };
 
-  const handleFundSubmit = () => {
+  const handleFundSubmit = async () => {
     const amount = selectedAmount || parseFloat(customAmount);
-    if (amount && amount > 0) {
-      onFund(amount);
-      toast.success(`Thank you for funding $${amount} to ${community.name}!`);
-      setSelectedAmount(0);
-      setCustomAmount("");
-    } else {
-      toast.error("Please select or enter a valid amount");
-    }
-  };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(amount);
+    setSendingTx(true);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::fund_hub`,
+        arguments: [
+          tx.object(REGISTRY_ID),
+          tx.pure.u64(BigInt(community.hub_id)),
+          tx.pure.u64(BigInt(amount)),
+        ],
+      });
+
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result: any) => {
+            setTxId(result?.digest);
+            setSuccessModalOpen(true);
+            setSelectedAmount(0);
+            setCustomAmount("");
+            setSendingTx(false);
+          },
+          onError: (err: any) => {
+            console.log(err);
+            toast.error("Failed to fund the community: " + err.message);
+            setSendingTx(false);
+          },
+        }
+      );
+    } catch (error: any) {
+      console.log(error);
+      toast.error("Transaction failed: " + error.message);
+      setSendingTx(false);
+    }
   };
 
   return (
@@ -124,7 +152,6 @@ export function CommunityDetailPage({
                   </div>
                 </div>
 
-                {/* Description */}
                 <div>
                   <h3 className="font-medium mb-2">About This Community</h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -140,38 +167,28 @@ export function CommunityDetailPage({
             <Card className="p-6 border-2 border-yellow-200 bg-yellow-50/30">
               <h2 className="text-xl font-medium mb-4">Fund This Community</h2>
 
-              {/* Funding Progress */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-600">Goal</span>
-                  <span className="font-medium">
-                    {formatCurrency(community.fundingGoal)}
-                  </span>
+                  <span className="font-medium">{community.fundingGoal}</span>
                 </div>
-
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-sm text-gray-600">Raised</span>
                   <span className="font-medium">
-                    {formatCurrency(community.currentFunding)}
+                    {community.currentFunding}
                   </span>
                 </div>
-
                 <Progress value={progressPercentage} className="h-3 mb-2" />
-
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-500">
                     {progressPercentage}% funded
                   </span>
-                  <span className="text-gray-500">
-                    {formatCurrency(remainingAmount)} to go
-                  </span>
+                  <span className="text-gray-500">{remainingAmount} to go</span>
                 </div>
               </div>
 
-              {/* Amount Selection */}
               <div className="mb-6">
                 <h3 className="font-medium mb-3">Select Amount</h3>
-
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {predefinedAmounts.map((amount) => (
                     <button
@@ -187,7 +204,6 @@ export function CommunityDetailPage({
                     </button>
                   ))}
                 </div>
-
                 <div className="relative">
                   <input
                     type="number"
@@ -202,16 +218,18 @@ export function CommunityDetailPage({
                 </div>
               </div>
 
-              {/* Fund Button */}
               <Button
                 onClick={handleFundSubmit}
                 disabled={
                   progressPercentage >= 100 ||
+                  sendingTx ||
                   (!selectedAmount && !customAmount)
                 }
                 className="w-full bg-[#FFC404] hover:bg-yellow-500 text-black font-medium py-3 rounded-lg disabled:bg-gray-300 disabled:text-gray-500"
               >
-                {progressPercentage >= 100
+                {sendingTx
+                  ? "Funding..."
+                  : progressPercentage >= 100
                   ? "Fully Funded"
                   : `Fund ${
                       selectedAmount
@@ -229,6 +247,15 @@ export function CommunityDetailPage({
           </div>
         </div>
       </motion.div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title="Funding Successful!"
+        message={`You successfully funded ${community.name}.`}
+        transactionId={txId}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 const networks = {
+  testnet: { url: getFullnodeUrl("testnet") },
   devnet: { url: getFullnodeUrl("devnet") },
   mainnet: { url: getFullnodeUrl("mainnet") },
 };
@@ -19,7 +20,7 @@ const root = createRoot(container);
 
 root.render(
   <QueryClientProvider client={queryClient}>
-    <SuiClientProvider networks={networks} defaultNetwork="devnet">
+    <SuiClientProvider networks={networks} defaultNetwork="testnet">
       <WalletProvider>
         <App />
       </WalletProvider>

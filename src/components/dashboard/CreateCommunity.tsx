@@ -8,6 +8,24 @@ import { Textarea } from "../ui/textarea";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { Upload, X, Camera } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
+import { MODULE_NAME, PACKAGE_ID, REGISTRY_ID } from "../../constants";
+import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
+import { SuccessModal } from "../ui/SuccessModal";
+
+export const client = new SuiClient({ url: getFullnodeUrl("testnet") });
+
+async function getCallerTokenBalance(address: string, coinType: string) {
+  const coins = await client.getCoins({ owner: address, coinType });
+  return coins.data.reduce(
+    (sum, coin) => sum + BigInt(coin.balance),
+    BigInt(0)
+  );
+}
 
 interface CommunityFormData {
   leaderName: string;
@@ -34,6 +52,13 @@ export function CreateCommunityPage() {
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [sendingTx, setSendingTx] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | undefined>(
+    undefined
+  );
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const account: any = useCurrentAccount();
 
   const handleInputChange = (field: keyof CommunityFormData, value: string) => {
     setFormData((prev) => ({
@@ -88,31 +113,108 @@ export function CreateCommunityPage() {
     setImagePreview(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  async function uploadImageToCloudinary(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "my-uploads"); // replace with your preset
+    formData.append("folder", "communities"); // optional folder in Cloudinary
 
-    // Basic validation
-    if (!formData.communityName || !formData.leaderName || !formData.city) {
-      toast.error("Please fill in all required fields");
-      return;
+    const response = await fetch(
+      "https://api.cloudinary.com/v1_1/dztnevagf/image/upload",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Image upload failed");
     }
+    return data.secure_url; // Cloudinary URL
+  }
 
-    // Here you would typically send the data to your backend
-    console.log("Community data:", formData);
-    toast.success("Community created successfully!");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSendingTx(true);
 
-    // Reset form
-    setFormData({
-      leaderName: "",
-      communityName: "",
-      city: "",
-      establishedNumber: "",
-      longitude: "",
-      latitude: "",
-      description: "",
-      image: null,
-    });
-    setImagePreview(null);
+    try {
+      // 1️⃣ Upload image first (if selected)
+      let imageUrl = "";
+      if (formData.image) {
+        imageUrl = await uploadImageToCloudinary(formData.image);
+      }
+
+      // 2️⃣ Get caller token balance
+      const callerTokenBalance = await getCallerTokenBalance(
+        account.address,
+        `0x5c28ffccbaa739ecaae7cfddeffe15b8cbc09d3e4248e0b987b4f6bb1608cd2f::lit_token::LIT_TOKEN`
+      );
+
+      // 3️⃣ Convert string fields to vector<u8>
+      const name: Uint8Array = new TextEncoder().encode(formData.communityName);
+      const city: Uint8Array = new TextEncoder().encode(formData.city);
+      const contact: Uint8Array = new TextEncoder().encode(formData.leaderName);
+      const communityImage: Uint8Array = new TextEncoder().encode(imageUrl);
+
+      console.log(communityImage);
+
+      // 4️⃣ Parse latitude/longitude as u64
+      const latitude: bigint = BigInt(
+        Math.floor(Number(formData.latitude) * 1e6)
+      );
+      const longitude: bigint = BigInt(
+        Math.floor(Number(formData.longitude) * 1e6)
+      );
+
+      // 5️⃣ Build transaction
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::propose_hub`,
+        arguments: [
+          tx.object(REGISTRY_ID),
+          tx.pure.vector("u8", name),
+          tx.pure.vector("u8", city),
+          tx.pure.u64(latitude),
+          tx.pure.u64(longitude),
+          tx.pure.vector("u8", contact),
+          tx.pure.u64(callerTokenBalance),
+          tx.pure.vector("u8", communityImage),
+        ],
+      });
+
+      // 6️⃣ Execute transaction
+      signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            toast.success("Community created successfully!");
+            setTransactionId(result?.digest);
+            setIsSuccessModalOpen(true);
+            setFormData({
+              leaderName: "",
+              communityName: "",
+              city: "",
+              establishedNumber: "",
+              longitude: "",
+              latitude: "",
+              description: "",
+              image: null,
+            });
+            setImagePreview(null);
+            setSendingTx(false);
+          },
+          onError: (err) => {
+            toast.error("Failed to create community: " + err.message);
+            setSendingTx(false);
+          },
+        }
+      );
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Something went wrong during submission");
+      setSendingTx(false);
+    }
   };
 
   return (
@@ -353,15 +455,24 @@ export function CreateCommunityPage() {
               <div className="pt-4">
                 <Button
                   type="submit"
-                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-medium py-3 rounded-lg"
+                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-medium py-4 rounded-lg"
+                  disabled={sendingTx}
                 >
-                  Create Community
+                  {sendingTx ? "Sending..." : "Create Community"}
                 </Button>
               </div>
             </form>
           </div>
         </Card>
       </motion.div>
+
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title="Community Created!"
+        message="Your community has been successfully created."
+        transactionId={transactionId}
+      />
     </div>
   );
 }
